@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 type AccountDomain struct {
@@ -45,24 +46,33 @@ func (d *AccountDomain) CreateAccount(ctx context.Context, account *entity.Creat
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		return err
+		d.logger.Error(ctx, "failed to begin transaction for account_id=%d: %v", account.AccountID, err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 	qtx := d.queries.WithTx(tx)
 
 	_, err = qtx.CreateAccount(ctx, int64(account.AccountID))
 	if err != nil {
-		return err
+		d.logger.Error(ctx, "failed to create account record for account_id=%d: %v", account.AccountID, err)
+		return fmt.Errorf("failed to create account: %w", err)
 	}
 
+	noTransferID := sql.NullInt64{Valid: false}
 	_, err = qtx.CreateCreditTransaction(ctx, sqlc.CreateCreditTransactionParams{
 		AccountID:  int64(account.AccountID),
-		TransferID: sql.NullInt64{Valid: false},
+		TransferID: noTransferID,
 		Amount:     account.InitialBalance,
 	})
 	if err != nil {
-		return err
+		d.logger.Error(ctx, "failed to create initial credit transaction for account_id=%d: %v", account.AccountID, err)
+		return fmt.Errorf("failed to create initial transaction: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		d.logger.Error(ctx, "failed to commit transaction for account_id=%d: %v", account.AccountID, err)
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
