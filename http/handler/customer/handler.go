@@ -1,20 +1,20 @@
 package customer
 
 import (
-	customer "bank/customer"
+	"bank/account"
 	"errors"
 )
 
 type Handler struct {
-	customerDomain *customer.CustomerDomain
+	accountDomain *account.AccountDomain
 }
 
-func NewHandler(customerService *customer.CustomerDomain) (*Handler, error) {
-	if customerService == nil {
-		return nil, errors.New("customer domain is nil")
+func NewHandler(accountDomain *account.AccountDomain) (*Handler, error) {
+	if accountDomain == nil {
+		return nil, errors.New("account domain is nil")
 	}
 
 	return &Handler{
-		customerDomain: customerService,
+		accountDomain: accountDomain,
 	}, nil
 }

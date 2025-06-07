@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bank/account"
 	"bank/config"
-	customerSvc "bank/customer"
 	"bank/http/handler/customer"
 	dbPkg "bank/internal/db"
 	"bank/internal/repository"
@@ -62,17 +62,17 @@ func main() {
 }
 
 func registerDependencies(r *chi.Mux, db *sql.DB) error {
-	customerRepository, err := repository.NewCustomerRepository(db)
+	accountRepository, err := repository.NewAccountRepository(db)
 	if err != nil {
 		return err
 	}
 
-	customerDomain, err := customerSvc.NewCustomerDomain(db, customerRepository)
+	accountDomain, err := account.NewAccountDomain(db, accountRepository)
 	if err != nil {
 		return err
 	}
 
-	customerHandler, err := customer.NewHandler(customerDomain)
+	customerHandler, err := customer.NewHandler(accountDomain)
 	if err != nil {
 		return err
 	}
