@@ -16,6 +16,14 @@ type Account struct {
 	UpdatedAt sql.NullTime `db:"updated_at" json:"updated_at"`
 }
 
+type AccountBalanceSnapshot struct {
+	ID                int64        `db:"id" json:"id"`
+	AccountID         int64        `db:"account_id" json:"account_id"`
+	Balance           string       `db:"balance" json:"balance"`
+	LastTransactionID int64        `db:"last_transaction_id" json:"last_transaction_id"`
+	CreatedAt         sql.NullTime `db:"created_at" json:"created_at"`
+}
+
 type Transaction struct {
 	ID         int64           `db:"id" json:"id"`
 	AccountID  int64           `db:"account_id" json:"account_id"`
