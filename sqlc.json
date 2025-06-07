@@ -19,7 +19,28 @@
           "overrides": [
             {
               "column": "*.amount",
-              "go_type": "github.com/shopspring/decimal.Decimal"
+              "go_type": {
+                "import": "github.com/shopspring/decimal",
+                "type": "Decimal"
+              }
+            },
+            {
+              "db_type": "decimal",
+              "go_type": {
+                "import": "github.com/shopspring/decimal",
+                "type": "Decimal"
+              }
+            },
+            {
+              "column": "*.*.current_balance",
+              "go_type": {
+                "import": "github.com/shopspring/decimal",
+                "type": "Decimal"
+              }
+            },
+            {
+              "db_type": "bigint",
+              "go_type": "uint64"
             }
           ]
         }

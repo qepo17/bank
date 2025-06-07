@@ -53,14 +53,14 @@ recent_transactions AS (
       AND t.id > ls.last_transaction_id
 )
 SELECT
-    ls.balance + COALESCE(rt.transaction_delta, 0) as current_balance
+    (ls.balance + COALESCE(rt.transaction_delta, 0))::decimal(20, 6) as current_balance
 FROM latest_snapshot ls
 CROSS JOIN recent_transactions rt
 `
 
-func (q *Queries) GetAccountBalanceByAccountID(ctx context.Context, accountID int64) (int32, error) {
+func (q *Queries) GetAccountBalanceByAccountID(ctx context.Context, accountID int64) (string, error) {
 	row := q.db.QueryRowContext(ctx, getAccountBalanceByAccountID, accountID)
-	var current_balance int32
+	var current_balance string
 	err := row.Scan(&current_balance)
 	return current_balance, err
 }
