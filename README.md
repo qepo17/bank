@@ -6,6 +6,8 @@ A Go-based banking application with PostgreSQL database.
 
 - Go 1.24+
 - Docker and Docker Compose (for database)
+- Make (for running development commands)
+- [Goose](https://github.com/pressly/goose) (for database migrations)
 
 ## Environment Configuration
 
@@ -61,12 +63,66 @@ docker-compose up -d
    go mod download
    ```
 
-3. Set up environment variables (see Environment Configuration above)
-
-4. Start the database:
+3. Install goose (database migration tool):
    ```bash
-   docker-compose up -d
+   make install-goose
    ```
+
+4. Set up environment variables (see Environment Configuration above)
+
+5. Start the quick-setup command (database & dependencies & migration):
+   ```bash
+   make dev-setup
+   ```
+
+## Database Migrations
+
+This project uses [Goose](https://github.com/pressly/goose) for database migrations.
+
+### Migration Commands
+
+#### Install Goose
+```bash
+make install-goose
+```
+
+#### Run Migrations
+```bash
+# Run all pending migrations
+make migrate-up
+
+# Check migration status
+make migrate-status
+
+# Rollback last migration
+make migrate-down
+```
+
+#### Create New Migration
+```bash
+# Create a new migration file
+make migrate-create name=add_user_table
+
+# This will create a file like: migration/20240101120000_add_user_table.sql
+```
+
+#### Manual Goose Commands
+If you prefer to use goose directly:
+```bash
+# Set up envar
+GOOSE_DRIVER=postgres
+GOOSE_DBSTRING=postgres://bankuser:bankpass@localhost:5432/bank
+GOOSE_MIGRATION_DIR=./migration
+
+# Run migrations
+goose up
+
+# Check status
+goose status
+
+# Create new migration
+goose create create_user_table sql
+```
 
 ## Test
 
@@ -77,28 +133,27 @@ go test ./...
 
 ## Run Locally
 
-1. Start the database:
+1. Start the quick-setup:
    ```bash
-   docker-compose up -d
+   make dev-setup
    ```
 
 2. Run the web application:
    ```bash
-   with_env go run cmd/web/main.go
+   make dev-run
    ```
 
 3. Run the worker (in another terminal):
    ```bash
-   export $(cat .env | xargs)
-   go run cmd/worker/main.go
+   make dev-worker
    ```
 
-The web application will be available at `http://localhost:80` (or the port specified in your environment).
+The web application will be available at `http://localhost:8080` (or the port specified in your environment).
 
 ## Development Workflow
 
 1. **Database**: Always start with `docker-compose up -d`
-2. **Environment**: Load variables with `export $(cat .env | xargs)`
+2. **Environment**: Load variables with `with_env` (if you already specifiec as written above)
 3. **Development**: Run `go run cmd/web/main.go` for the web server
 4. **Testing**: Run integration tests against the containerized database
 5. **Cleanup**: Stop database with `docker-compose down`
