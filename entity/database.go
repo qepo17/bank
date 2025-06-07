@@ -1,13 +1,13 @@
 package entity
 
 import (
-	"database/sql"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Model struct {
-	ID        string
+	ID        uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt sql.NullTime
 }
