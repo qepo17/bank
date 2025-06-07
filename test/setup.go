@@ -160,7 +160,7 @@ func SetupTestWithoutTransaction(t *testing.T) (*TestDB, func()) {
 }
 
 func getAllTables(db *sql.DB) ([]string, error) {
-	rows, err := db.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+	rows, err := db.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name != 'goose_db_version'")
 	if err != nil {
 		return nil, err
 	}
