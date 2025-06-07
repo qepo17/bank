@@ -11,6 +11,8 @@ type Config struct {
 	DBCustomer string `envconfig:"DB_USER" default:"postgres"`
 	DBPassword string `envconfig:"DB_PASSWORD" default:"postgres"`
 	DBName     string `envconfig:"DB_NAME" default:"postgres"`
+
+	LogLevel string `envconfig:"LOG_LEVEL" default:"debug"`
 }
 
 func Get() (*Config, error) {

@@ -3,6 +3,7 @@ package account
 import (
 	"bank/entity"
 	"bank/internal/db/sqlc"
+	"bank/internal/logger"
 	"context"
 	"database/sql"
 	"errors"
@@ -11,9 +12,10 @@ import (
 type AccountDomain struct {
 	db      *sql.DB
 	queries *sqlc.Queries
+	logger  *logger.Logger
 }
 
-func NewAccountDomain(db *sql.DB, sqlc *sqlc.Queries) (*AccountDomain, error) {
+func NewAccountDomain(db *sql.DB, sqlc *sqlc.Queries, logger *logger.Logger) (*AccountDomain, error) {
 	if db == nil {
 		return nil, errors.New("db is nil")
 	}
@@ -22,9 +24,16 @@ func NewAccountDomain(db *sql.DB, sqlc *sqlc.Queries) (*AccountDomain, error) {
 		return nil, errors.New("sqlc is nil")
 	}
 
+	if logger == nil {
+		return nil, errors.New("logger is nil")
+	}
+
+	log := logger.WithField("domain", "account")
+
 	return &AccountDomain{
 		db:      db,
 		queries: sqlc,
+		logger:  log,
 	}, nil
 }
 

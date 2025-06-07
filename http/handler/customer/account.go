@@ -33,7 +33,8 @@ func (h *Handler) CreateAccount() http.HandlerFunc {
 			case errors.Is(err, entity.ErrValidation):
 				response.JsonError(w, http.StatusBadRequest, err.Error())
 			default:
-				response.JsonError(w, http.StatusInternalServerError, err.Error())
+				response.JsonError(w, http.StatusInternalServerError, "it's not you, it's us. please contact support")
+				h.logger.Error(r.Context(), "failed to create account: %v", err)
 			}
 			return
 		}

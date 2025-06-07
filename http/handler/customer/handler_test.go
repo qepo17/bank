@@ -4,6 +4,7 @@ import (
 	"bank/account"
 	"bank/http/handler/customer"
 	"bank/internal/db/sqlc"
+	"bank/internal/logger"
 	"bank/test"
 	"bytes"
 	"database/sql"
@@ -20,12 +21,13 @@ type testHandlerFunc func(t *testing.T, handler *handlerFixture)
 
 func testHandler(t *testing.T, testFunc testHandlerFunc) {
 	test.RunWithoutTransaction(t, func(testDB *test.TestDB) {
-		accountDomain, err := account.NewAccountDomain(testDB.DB, sqlc.New(testDB.DB))
+		testLogger := logger.NewLogger("debug")
+		accountDomain, err := account.NewAccountDomain(testDB.DB, sqlc.New(testDB.DB), testLogger)
 		if err != nil {
 			t.Fatalf("failed to create account domain: %v", err)
 		}
 
-		handler, err := customer.NewHandler(accountDomain)
+		handler, err := customer.NewHandler(accountDomain, testLogger)
 		if err != nil {
 			t.Fatalf("failed to create handler: %v", err)
 		}
