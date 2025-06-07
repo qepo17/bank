@@ -3,6 +3,8 @@ package entity
 import (
 	"fmt"
 	"strings"
+
+	"github.com/shopspring/decimal"
 )
 
 type AccountType string
@@ -20,13 +22,24 @@ const (
 )
 
 type Account struct {
-	Model
+	ModelWithUpdatedAt
 }
 
-func (a *Account) Validate() error {
+type CreateAccount struct {
+	AccountID      uint64
+	InitialBalance decimal.Decimal
+}
+
+func (a *CreateAccount) Validate() error {
 	msgs := []string{}
-	if a.Model.ID == 0 {
-		msgs = append(msgs, "id is required")
+	if a.AccountID == 0 {
+		msgs = append(msgs, "account id is required")
+	}
+	if a.InitialBalance.IsZero() {
+		msgs = append(msgs, "initial balance is required")
+	}
+	if a.InitialBalance.LessThan(decimal.Zero) {
+		msgs = append(msgs, "initial balance must be greater than 0")
 	}
 	if len(msgs) > 0 {
 		return fmt.Errorf("%w: %s", ErrValidation, strings.Join(msgs, ", "))

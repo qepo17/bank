@@ -2,12 +2,14 @@ package entity
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type Model struct {
-	ID        uuid.UUID
+	ID        uint64
 	CreatedAt time.Time
+}
+
+type ModelWithUpdatedAt struct {
+	Model
 	UpdatedAt time.Time
 }

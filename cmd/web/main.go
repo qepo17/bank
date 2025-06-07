@@ -5,7 +5,7 @@ import (
 	"bank/config"
 	"bank/http/handler/customer"
 	dbPkg "bank/internal/db"
-	"bank/internal/repository"
+	"bank/internal/db/sqlc"
 	"bank/internal/server"
 	"context"
 	"database/sql"
@@ -62,12 +62,9 @@ func main() {
 }
 
 func registerDependencies(r *chi.Mux, db *sql.DB) error {
-	accountRepository, err := repository.NewAccountRepository(db)
-	if err != nil {
-		return err
-	}
+	sqlc := sqlc.New(db)
 
-	accountDomain, err := account.NewAccountDomain(db, accountRepository)
+	accountDomain, err := account.NewAccountDomain(db, sqlc)
 	if err != nil {
 		return err
 	}
