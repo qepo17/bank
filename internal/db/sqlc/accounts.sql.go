@@ -25,7 +25,7 @@ func (q *Queries) CreateAccount(ctx context.Context, id int64) (Account, error) 
 const getAccountBalanceByAccountID = `-- name: GetAccountBalanceByAccountID :one
 WITH filters AS (
     SELECT
-        $1 as account_id
+        $1::bigint as account_id
 ),
 latest_snapshot AS (
     SELECT 
@@ -58,8 +58,8 @@ FROM latest_snapshot ls
 CROSS JOIN recent_transactions rt
 `
 
-func (q *Queries) GetAccountBalanceByAccountID(ctx context.Context, accountID int64) (string, error) {
-	row := q.db.QueryRowContext(ctx, getAccountBalanceByAccountID, accountID)
+func (q *Queries) GetAccountBalanceByAccountID(ctx context.Context, dollar_1 int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, getAccountBalanceByAccountID, dollar_1)
 	var current_balance string
 	err := row.Scan(&current_balance)
 	return current_balance, err

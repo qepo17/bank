@@ -11,7 +11,7 @@ WHERE id = $1;
 -- name: GetAccountBalanceByAccountID :one
 WITH filters AS (
     SELECT
-        $1 as account_id
+        $1::bigint as account_id
 ),
 latest_snapshot AS (
     SELECT 
