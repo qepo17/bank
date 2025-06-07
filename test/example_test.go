@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 
 // Example test using the SetupTest helper
 func TestCustomerOperations(t *testing.T) {
-	testDB, cleanup := SetupTest(t)
+	testDB, cleanup := SetupTestWithTransaction(t)
 	defer cleanup()
 
 	// Insert a customer

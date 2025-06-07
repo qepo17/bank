@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"testing"
@@ -48,7 +49,9 @@ func NewTestSuite() (*TestSuite, error) {
 func (ts *TestSuite) BeginTransaction(t *testing.T) *TestDB {
 	t.Helper()
 
-	tx, err := ts.db.Begin()
+	tx, err := ts.db.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	})
 	if err != nil {
 		t.Fatalf("failed to begin transaction: %v", err)
 	}
@@ -56,6 +59,15 @@ func (ts *TestSuite) BeginTransaction(t *testing.T) *TestDB {
 	return &TestDB{
 		DB: ts.db,
 		Tx: tx,
+	}
+}
+
+// BeginWithoutTransaction starts a new transaction for a test
+func (ts *TestSuite) BeginWithoutTransaction(t *testing.T) *TestDB {
+	t.Helper()
+
+	return &TestDB{
+		DB: ts.db,
 	}
 }
 
@@ -98,8 +110,8 @@ func (tdb *TestDB) Prepare(query string) (*sql.Stmt, error) {
 	return tdb.Tx.Prepare(query)
 }
 
-// SetupTest is a helper function to set up a test with transaction isolation
-func SetupTest(t *testing.T) (*TestDB, func()) {
+// SetupTestWithTransaction is a helper function to set up a test with transaction isolation
+func SetupTestWithTransaction(t *testing.T) (*TestDB, func()) {
 	t.Helper()
 
 	suite, err := NewTestSuite()
@@ -117,11 +129,72 @@ func SetupTest(t *testing.T) (*TestDB, func()) {
 	return testDB, cleanup
 }
 
+// SetupTestWithoutTransaction is a helper function to set up a test without transaction isolation
+func SetupTestWithoutTransaction(t *testing.T) (*TestDB, func()) {
+	t.Helper()
+
+	suite, err := NewTestSuite()
+	if err != nil {
+		t.Fatalf("failed to create test suite: %v", err)
+	}
+
+	testDB := suite.BeginWithoutTransaction(t)
+
+	cleanup := func() {
+		tables, err := getAllTables(suite.db)
+		if err != nil {
+			t.Fatalf("failed to get all tables: %v", err)
+		}
+
+		for _, table := range tables {
+			_, err := testDB.DB.ExecContext(context.Background(), "TRUNCATE TABLE "+table+" CASCADE")
+			if err != nil {
+				t.Fatalf("failed to truncate table %s: %v", table, err)
+			}
+		}
+
+		suite.Close()
+	}
+
+	return testDB, cleanup
+}
+
+func getAllTables(db *sql.DB) ([]string, error) {
+	rows, err := db.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var tables []string
+	for rows.Next() {
+		var table string
+		if err := rows.Scan(&table); err != nil {
+			return nil, err
+		}
+		tables = append(tables, table)
+	}
+
+	return tables, nil
+}
+
 // RunWithTransaction runs a test function with transaction isolation
 func RunWithTransaction(t *testing.T, testFunc func(*TestDB)) {
 	t.Helper()
 
-	testDB, cleanup := SetupTest(t)
+	testDB, cleanup := SetupTestWithTransaction(t)
+	defer cleanup()
+
+	testFunc(testDB)
+}
+
+// RunWithoutTransaction runs a test function without transaction isolation
+// Cleanup by truncating the database
+func RunWithoutTransaction(t *testing.T, testFunc func(*TestDB)) {
+	t.Helper()
+
+	testDB, cleanup := SetupTestWithoutTransaction(t)
 	defer cleanup()
 
 	testFunc(testDB)
