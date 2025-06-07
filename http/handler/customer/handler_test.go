@@ -7,9 +7,12 @@ import (
 	"bank/internal/logger"
 	"bank/test"
 	"bytes"
+	"context"
 	"database/sql"
 	"net/http"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type handlerFixture struct {
@@ -39,11 +42,21 @@ func testHandler(t *testing.T, testFunc testHandlerFunc) {
 	})
 }
 
-func createRequest(t *testing.T, method, path string, body string) *http.Request {
+type requestParam struct {
+	key   string
+	value string
+}
+
+func createRequest(t *testing.T, method, path string, body string, params ...requestParam) *http.Request {
 	req, err := http.NewRequest(method, path, bytes.NewBufferString(body))
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
+	paramCtx := chi.NewRouteContext()
+	for _, param := range params {
+		paramCtx.URLParams.Add(param.key, param.value)
+	}
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, paramCtx))
 	req.Header.Set("Content-Type", "application/json")
 	return req
 }

@@ -42,3 +42,35 @@ func (h *Handler) CreateAccount() http.HandlerFunc {
 		response.StatusOnly(w, http.StatusCreated)
 	}
 }
+
+type GetAccountBalanceResponse struct {
+	AccountID uint64          `json:"account_id"`
+	Balance   decimal.Decimal `json:"balance"`
+}
+
+func (h *Handler) GetAccountBalance() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		accountID, err := request.GetParamUint64(r, "account_id")
+		if err != nil {
+			response.JsonError(w, http.StatusBadRequest, "invalid account id")
+			return
+		}
+
+		balance, err := h.accountDomain.GetAccountBalance(r.Context(), accountID)
+		if err != nil {
+			switch {
+			case errors.Is(err, entity.ErrNoRows):
+				response.JsonError(w, http.StatusBadRequest, "invalid account")
+			default:
+				response.JsonError(w, http.StatusInternalServerError, "it's not you, it's us. please contact support")
+				h.logger.Error(r.Context(), "failed to get account balance: %v", err)
+			}
+			return
+		}
+
+		response.Json(w, http.StatusOK, GetAccountBalanceResponse{
+			AccountID: accountID,
+			Balance:   balance,
+		})
+	}
+}

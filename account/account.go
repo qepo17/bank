@@ -8,6 +8,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
+	"github.com/shopspring/decimal"
 )
 
 type AccountDomain struct {
@@ -75,4 +77,17 @@ func (d *AccountDomain) CreateAccount(ctx context.Context, account *entity.Creat
 	}
 
 	return nil
+}
+
+func (d *AccountDomain) GetAccountBalance(ctx context.Context, accountID uint64) (decimal.Decimal, error) {
+	balance, err := d.queries.GetAccountBalanceByAccountID(ctx, int64(accountID))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return decimal.Zero, entity.ErrNoRows
+		}
+
+		d.logger.Error(ctx, "failed to get account balance for account_id=%d: %v", accountID, err)
+		return decimal.Zero, fmt.Errorf("failed to get account balance: %w", err)
+	}
+	return decimal.NewFromString(balance)
 }
