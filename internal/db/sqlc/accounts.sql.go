@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const checkAccountExists = `-- name: CheckAccountExists :one
+SELECT EXISTS(SELECT 1 FROM accounts WHERE id = $1)
+`
+
+func (q *Queries) CheckAccountExists(ctx context.Context, id int64) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkAccountExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO accounts (id, created_at, updated_at)
 VALUES ($1, NOW(), NOW())
@@ -23,46 +34,19 @@ func (q *Queries) CreateAccount(ctx context.Context, id int64) (Account, error) 
 }
 
 const getAccountBalanceByAccountID = `-- name: GetAccountBalanceByAccountID :one
-WITH filters AS (
-    SELECT
-        $1::bigint as account_id
-),
-latest_snapshot AS (
-    SELECT 
-        account_balance_snapshots.account_id,
-        balance,
-        last_transaction_id,
-        created_at
-    FROM account_balance_snapshots
-    JOIN filters ON account_balance_snapshots.account_id = filters.account_id
-    ORDER BY created_at DESC
-    LIMIT 1
-),
-recent_transactions AS (
-    SELECT 
-        COALESCE(
-            SUM(CASE 
-                WHEN t.trx_type = 'CREDIT' THEN t.amount
-                WHEN t.trx_type = 'DEBIT' THEN -t.amount
-                ELSE 0
-            END), 0
-        ) as transaction_delta
-    FROM transactions t
-    CROSS JOIN latest_snapshot ls
-    JOIN filters ON t.account_id = filters.account_id
-      AND t.id > ls.last_transaction_id
-)
-SELECT
-    (ls.balance + COALESCE(rt.transaction_delta, 0))::decimal(20, 6) as current_balance
-FROM latest_snapshot ls
-CROSS JOIN recent_transactions rt
+SELECT get_account_balance($1, $2)
 `
 
-func (q *Queries) GetAccountBalanceByAccountID(ctx context.Context, dollar_1 int64) (string, error) {
-	row := q.db.QueryRowContext(ctx, getAccountBalanceByAccountID, dollar_1)
-	var current_balance string
-	err := row.Scan(&current_balance)
-	return current_balance, err
+type GetAccountBalanceByAccountIDParams struct {
+	FilterAccountID     int64 `db:"filter_account_id" json:"filter_account_id"`
+	FilterLockForUpdate bool  `db:"filter_lock_for_update" json:"filter_lock_for_update"`
+}
+
+func (q *Queries) GetAccountBalanceByAccountID(ctx context.Context, arg GetAccountBalanceByAccountIDParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getAccountBalanceByAccountID, arg.FilterAccountID, arg.FilterLockForUpdate)
+	var get_account_balance string
+	err := row.Scan(&get_account_balance)
+	return get_account_balance, err
 }
 
 const getAccountByID = `-- name: GetAccountByID :one

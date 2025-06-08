@@ -80,7 +80,19 @@ func (d *AccountDomain) CreateAccount(ctx context.Context, account *entity.Creat
 }
 
 func (d *AccountDomain) GetAccountBalance(ctx context.Context, accountID uint64) (decimal.Decimal, error) {
-	balance, err := d.queries.GetAccountBalanceByAccountID(ctx, int64(accountID))
+	exists, err := d.queries.CheckAccountExists(ctx, int64(accountID))
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("failed to check account exists: %w", err)
+	}
+
+	if !exists {
+		return decimal.Zero, entity.ErrNoRows
+	}
+
+	balance, err := d.queries.GetAccountBalanceByAccountID(ctx, sqlc.GetAccountBalanceByAccountIDParams{
+		FilterAccountID:     int64(accountID),
+		FilterLockForUpdate: true,
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return decimal.Zero, entity.ErrNoRows
