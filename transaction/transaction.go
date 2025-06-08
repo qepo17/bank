@@ -44,6 +44,10 @@ func NewTransactionDomain(db *sql.DB, sqlc *sqlc.Queries, logger *logger.Logger)
 	return &TransactionDomain{db: db, queries: sqlc, logger: log}, nil
 }
 
+// CreateTransferFunds executes a fund transfer between two accounts atomically.
+// It creates transfer records and corresponding debit/credit transactions, then parses
+// the result to determine success or failure. Returns appropriate domain errors based
+// on the database response (insufficient funds, invalid account, validation errors).
 func (d *TransactionDomain) CreateTransferFunds(ctx context.Context, param entity.CreateTransferFundsParams) (entity.CreateTransferFundsResult, error) {
 	transferFunds, err := d.queries.CreateTransferTransaction(ctx, sqlc.CreateTransferTransactionParams{
 		ParamFromAccountID: int64(param.SourceAccountID),
