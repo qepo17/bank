@@ -79,6 +79,9 @@ func (d *AccountDomain) CreateAccount(ctx context.Context, account *entity.Creat
 	return nil
 }
 
+// GetAccountBalance retrieves the current balance for the specified account ID.
+// It first checks if the account exists, then fetches the balance with a lock for update
+// to ensure consistency. Returns decimal.Zero and entity.ErrNoRows if the account doesn't exist.
 func (d *AccountDomain) GetAccountBalance(ctx context.Context, accountID uint64) (decimal.Decimal, error) {
 	exists, err := d.queries.CheckAccountExists(ctx, int64(accountID))
 	if err != nil {
