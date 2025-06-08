@@ -1,3 +1,5 @@
+DOCKER_CMD := sudo docker
+
 # Import .env file
 include .env
 export
@@ -31,7 +33,7 @@ migrate-create:
 dev-setup: install-goose
 	@echo "Setting up development environment..."
 	@go mod download
-	@sudo docker compose up -d
+	@$(DOCKER_CMD) compose up -d
 	@sleep 5
 	@make migrate-up
 
@@ -50,15 +52,15 @@ test:
 
 test-integration:
 	@echo "Running integration tests..."
-	@docker-compose up -d
+	@$(DOCKER_CMD) compose up -d
 	@sleep 5
 	@go test ./... -tags=integration
-	@docker-compose down
+	@$(DOCKER_CMD) compose down
 
 # Clean up
 clean:
 	@echo "Cleaning up..."
-	@docker-compose down
+	@$(DOCKER_CMD) compose down
 	@go clean -cache
 
 .PHONY: install-goose migrate-up migrate-down migrate-status migrate-create dev-setup dev-run dev-worker test test-integration clean help 
