@@ -13,7 +13,6 @@ The test setup provides transaction-based isolation for database tests, ensuring
 ## Files
 
 - `setup.go` - Core test setup and transaction management
-- `example_test.go` - Example tests demonstrating usage patterns
 - `README.md` - This documentation file
 
 ## Usage Patterns
