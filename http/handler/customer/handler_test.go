@@ -6,6 +6,7 @@ import (
 	"bank/internal/db/sqlc"
 	"bank/internal/logger"
 	"bank/test"
+	"bank/transaction"
 	"bytes"
 	"context"
 	"database/sql"
@@ -30,7 +31,12 @@ func testHandler(t *testing.T, testFunc testHandlerFunc) {
 			t.Fatalf("failed to create account domain: %v", err)
 		}
 
-		handler, err := customer.NewHandler(accountDomain, testLogger)
+		transactionDomain, err := transaction.NewTransactionDomain(testDB.DB, sqlc.New(testDB.DB), testLogger)
+		if err != nil {
+			t.Fatalf("failed to create transaction domain: %v", err)
+		}
+
+		handler, err := customer.NewHandler(accountDomain, transactionDomain, testLogger)
 		if err != nil {
 			t.Fatalf("failed to create handler: %v", err)
 		}

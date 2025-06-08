@@ -8,6 +8,7 @@ import (
 	"bank/internal/db/sqlc"
 	"bank/internal/logger"
 	"bank/internal/server"
+	"bank/transaction"
 	"context"
 	"database/sql"
 	"errors"
@@ -75,7 +76,12 @@ func registerDependencies(r *chi.Mux, db *sql.DB, cfg *config.Config, log *logge
 		return err
 	}
 
-	customerHandler, err := customer.NewHandler(accountDomain, log)
+	transactionDomain, err := transaction.NewTransactionDomain(db, sqlc, log)
+	if err != nil {
+		return err
+	}
+
+	customerHandler, err := customer.NewHandler(accountDomain, transactionDomain, log)
 	if err != nil {
 		return err
 	}

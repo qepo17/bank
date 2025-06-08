@@ -63,3 +63,20 @@ func (q *Queries) CreateDebitTransaction(ctx context.Context, arg CreateDebitTra
 	)
 	return i, err
 }
+
+const createTransferTransaction = `-- name: CreateTransferTransaction :one
+SELECT transfer_funds($1, $2, $3) as result
+`
+
+type CreateTransferTransactionParams struct {
+	ParamFromAccountID int64  `db:"param_from_account_id" json:"param_from_account_id"`
+	ParamToAccountID   int64  `db:"param_to_account_id" json:"param_to_account_id"`
+	ParamAmount        string `db:"param_amount" json:"param_amount"`
+}
+
+func (q *Queries) CreateTransferTransaction(ctx context.Context, arg CreateTransferTransactionParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, createTransferTransaction, arg.ParamFromAccountID, arg.ParamToAccountID, arg.ParamAmount)
+	var result interface{}
+	err := row.Scan(&result)
+	return result, err
+}

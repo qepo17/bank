@@ -20,3 +20,15 @@ type Transaction struct {
 	Amount     decimal.Decimal
 	TrxType    TrxType
 }
+
+type CreateTransferFundsParams struct {
+	SourceAccountID      uint64
+	DestinationAccountID uint64
+	Amount               decimal.Decimal
+}
+
+type CreateTransferFundsResult struct {
+	TransferID   uint64
+	Success      bool
+	ErrorMessage string
+}

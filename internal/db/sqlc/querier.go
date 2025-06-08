@@ -13,6 +13,7 @@ type Querier interface {
 	CreateAccount(ctx context.Context, id int64) (Account, error)
 	CreateCreditTransaction(ctx context.Context, arg CreateCreditTransactionParams) (Transaction, error)
 	CreateDebitTransaction(ctx context.Context, arg CreateDebitTransactionParams) (Transaction, error)
+	CreateTransferTransaction(ctx context.Context, arg CreateTransferTransactionParams) (interface{}, error)
 	GetAccountBalanceByAccountID(ctx context.Context, arg GetAccountBalanceByAccountIDParams) (string, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 }
