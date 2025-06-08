@@ -8,6 +8,7 @@ A Go-based banking application with PostgreSQL database.
 - Docker and Docker Compose (for database)
 - Make (for running development commands)
 - [Goose](https://github.com/pressly/goose) (for database migrations)
+- [Sqlc](https://docs.sqlc.dev/en/latest/overview/install.html) (for sql queries generation)
 
 ## Environment Configuration
 
@@ -15,7 +16,7 @@ A Go-based banking application with PostgreSQL database.
 
 1. Copy the example environment file:
    ```bash
-   cp example.env .env
+   cp .env.example .env
    ```
 
 2. Edit `.env` with your configuration
@@ -52,8 +53,16 @@ A Go-based banking application with PostgreSQL database.
 
 Start PostgreSQL database:
 ```bash
-docker-compose up -d
+make dev-setup
+# OR manually:
+sudo docker compose up -d
 ```
+
+You can also use the containerized web application:
+```bash
+sudo docker compose up
+```
+This will start both the database and web application at `http://localhost:8080`.
 
 ## Installation
 
@@ -68,9 +77,14 @@ docker-compose up -d
    make install-goose
    ```
 
-4. Set up environment variables (see Environment Configuration above)
+4. Install sqlc (sql query tool):
+   ```bash
+   make install-sqlc
+   ```
 
-5. Start the quick-setup command (database & dependencies & migration):
+5. Set up environment variables (see Environment Configuration above)
+
+Or, start the quick-setup command (database & dependencies & migration):
    ```bash
    make dev-setup
    ```
@@ -128,8 +142,14 @@ goose create create_user_table sql
 
 ### Run Tests
 ```bash
+# All test
 go test ./...
+
+# Integration tests (requires database)
+make test-integration
 ```
+
+Note: Integration tests automatically start/stop the database using Docker Compose.
 
 ## Run Locally
 
@@ -143,7 +163,7 @@ go test ./...
    make dev-run
    ```
 
-3. Run the worker (in another terminal):
+3. (Optional) Run the worker (currently not implemented):
    ```bash
    make dev-worker
    ```
@@ -152,8 +172,8 @@ The web application will be available at `http://localhost:8080` (or the port sp
 
 ## Development Workflow
 
-1. **Database**: Always start with `docker-compose up -d`
-2. **Environment**: Load variables with `with_env` (if you already specifiec as written above)
+1. **Database**: Always start with `sudo docker compose up -d`
+2. **Environment**: Load variables with `with_env` (if you already specified as written above)
 3. **Development**: Run `go run cmd/web/main.go` for the web server
 4. **Testing**: Run integration tests against the containerized database
-5. **Cleanup**: Stop database with `docker-compose down`
+5. **Cleanup**: Stop database with `sudo docker compose down`
