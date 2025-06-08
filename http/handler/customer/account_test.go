@@ -123,22 +123,23 @@ func TestGetAccountBalance(t *testing.T) {
 					t.Fatalf("failed to create account: %v", err)
 				}
 
+				// Create initial transaction (to match the last_transaction_id)
+				var transactionID uint64
+				err = db.QueryRow(`
+					INSERT INTO transactions (id, account_id, amount, trx_type, created_at) 
+					VALUES ($1, $2, $3, 'CREDIT', NOW()) RETURNING id
+				`, 1, 123, "150.500000").Scan(&transactionID)
+				if err != nil {
+					t.Fatalf("failed to create transaction: %v", err)
+				}
+
 				// Create balance snapshot
 				_, err = db.Exec(`
 					INSERT INTO account_balance_snapshots (account_id, balance, last_transaction_id, created_at) 
 					VALUES ($1, $2, $3, NOW())
-				`, 123, "150.51234", 1)
+				`, 123, "150.51234", transactionID)
 				if err != nil {
 					t.Fatalf("failed to create balance snapshot: %v", err)
-				}
-
-				// Create initial transaction (to match the last_transaction_id)
-				_, err = db.Exec(`
-					INSERT INTO transactions (id, account_id, amount, trx_type, created_at) 
-					VALUES ($1, $2, $3, 'CREDIT', NOW())
-				`, 1, 123, "150.500000")
-				if err != nil {
-					t.Fatalf("failed to create transaction: %v", err)
 				}
 
 				// Create another transaction
@@ -164,11 +165,20 @@ func TestGetAccountBalance(t *testing.T) {
 					t.Fatalf("failed to create account: %v", err)
 				}
 
+				var transactionID uint64
+				err = db.QueryRow(`
+					INSERT INTO transactions (id, account_id, amount, trx_type, created_at) 
+					VALUES ($1, $2, $3, 'CREDIT', NOW()) RETURNING id
+				`, 1, 456, "0.000000").Scan(&transactionID)
+				if err != nil {
+					t.Fatalf("failed to create transaction: %v", err)
+				}
+
 				// Create balance snapshot with zero balance
 				_, err = db.Exec(`
 					INSERT INTO account_balance_snapshots (account_id, balance, last_transaction_id, created_at) 
 					VALUES ($1, $2, $3, NOW())
-				`, 456, "0.000000", 0)
+				`, 456, "0.000000", transactionID)
 				if err != nil {
 					t.Fatalf("failed to create balance snapshot: %v", err)
 				}
