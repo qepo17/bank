@@ -271,7 +271,7 @@ func TestCreateTransferFunds(t *testing.T) {
 				// Setup database state
 				tc.setupDB(t, handler)
 
-				req := createRequest(t, "POST", "/transfer", tc.request)
+				req := createRequest(t, "POST", "/transactions", tc.request)
 				rr := httptest.NewRecorder()
 				handler.handler.CreateTransferFunds()(rr, req)
 
@@ -395,7 +395,7 @@ func TestCreateTransferFunds_Concurrent(t *testing.T) {
 			for i := 0; i < 3; i++ {
 				go func() {
 					defer wg.Done()
-					req := createRequest(t, "POST", "/transfer", request)
+					req := createRequest(t, "POST", "/transactions", request)
 					rr := httptest.NewRecorder()
 					handler.handler.CreateTransferFunds()(rr, req)
 					if rr.Code == http.StatusOK {

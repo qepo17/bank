@@ -223,7 +223,7 @@ func TestGetAccountBalance(t *testing.T) {
 				tc.setupDB(t, handler.db)
 
 				// Create request with account_id parameter
-				req := createRequest(t, "GET", "/api/accounts/{account_id}/balance", "", requestParam{key: "account_id", value: tc.accountID})
+				req := createRequest(t, "GET", "/accounts/{account_id}", "", requestParam{key: "account_id", value: tc.accountID})
 
 				rr := httptest.NewRecorder()
 				handler.handler.GetAccountBalance()(rr, req)
