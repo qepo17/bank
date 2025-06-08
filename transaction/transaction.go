@@ -12,6 +12,15 @@ import (
 	"strings"
 )
 
+const (
+	// PostgreSQL composite type parsing constants
+	compositeTypeFields   = 3
+	postgresqlBooleanTrue = "t"
+	postgresqlNullValue   = "<NULL>"
+	quoteMark             = "\""
+	escapedQuote          = "\\\""
+)
+
 type TransactionDomain struct {
 	db      *sql.DB
 	queries *sqlc.Queries
@@ -59,18 +68,7 @@ func (d *TransactionDomain) CreateTransferFunds(ctx context.Context, param entit
 
 	if !transferFundsResult.Success {
 		d.logger.Error(ctx, "param=%+v, transfer funds failed", param)
-		normalizedErr := strings.ToLower(transferFundsResult.ErrorMessage)
-		switch {
-		case strings.Contains(normalizedErr, "insufficient funds"):
-			return entity.CreateTransferFundsResult{}, entity.ErrInsufficientFunds
-		case strings.Contains(normalizedErr, "account does not exist"):
-			return entity.CreateTransferFundsResult{}, entity.ErrDataNotFound
-		case strings.Contains(normalizedErr, "transfer amount must be positive"),
-			strings.Contains(normalizedErr, "cannot transfer to the same account"):
-			return entity.CreateTransferFundsResult{}, fmt.Errorf("%w: %s", entity.ErrValidation, transferFundsResult.ErrorMessage)
-		default:
-			return entity.CreateTransferFundsResult{}, fmt.Errorf("transfer funds failed: %s", transferFundsResult.ErrorMessage)
-		}
+		return entity.CreateTransferFundsResult{}, d.mapTransferError(transferFundsResult.ErrorMessage)
 	}
 
 	return transferFundsResult, nil
@@ -80,54 +78,99 @@ func (d *TransactionDomain) CreateTransferFunds(ctx context.Context, param entit
 // The input format is: "(transfer_id,success,error_message)"
 // Example: "(16007,t,\"Transfer completed successfully\")"
 func (d *TransactionDomain) parseTransferFundsResult(result interface{}) (entity.CreateTransferFundsResult, error) {
-	// Convert result to string (handle both string and []byte cases)
-	var resultStr string
-	switch v := result.(type) {
-	case string:
-		resultStr = v
-	case []byte:
-		resultStr = string(v)
-	default:
-		return entity.CreateTransferFundsResult{}, fmt.Errorf("expected string or []byte result, got %T", result)
+	resultStr, err := d.convertToString(result)
+	if err != nil {
+		return entity.CreateTransferFundsResult{}, err
 	}
 
-	// Remove parentheses
-	if !strings.HasPrefix(resultStr, "(") || !strings.HasSuffix(resultStr, ")") {
-		return entity.CreateTransferFundsResult{}, fmt.Errorf("invalid composite type format: %s", resultStr)
-	}
-	content := resultStr[1 : len(resultStr)-1]
-
-	results := strings.Split(content, ",")
-	if len(results) != 3 {
-		return entity.CreateTransferFundsResult{}, fmt.Errorf("invalid composite type content: %s", content)
+	content, err := d.extractCompositeContent(resultStr)
+	if err != nil {
+		return entity.CreateTransferFundsResult{}, err
 	}
 
-	// Parse transfer_id
-	transferIDStr := strings.TrimSpace(results[0])
-	var transferID uint64
-	if transferIDStr != "" && transferIDStr != "<NULL>" {
-		parsed, err := strconv.ParseUint(transferIDStr, 10, 64)
-		if err != nil {
-			return entity.CreateTransferFundsResult{}, fmt.Errorf("invalid transfer_id: %s", transferIDStr)
-		}
-		transferID = parsed
+	fields := strings.Split(content, ",")
+	if len(fields) != compositeTypeFields {
+		return entity.CreateTransferFundsResult{}, fmt.Errorf("invalid composite type content, expected %d fields got %d: %s", compositeTypeFields, len(fields), content)
 	}
 
-	// Parse success
-	successStr := strings.TrimSpace(results[1])
-	success := successStr == "t"
-
-	// Parse error_message (remove quotes if present)
-	errorMessage := strings.TrimSpace(results[2])
-	if strings.HasPrefix(errorMessage, "\"") && strings.HasSuffix(errorMessage, "\"") {
-		errorMessage = errorMessage[1 : len(errorMessage)-1]
-		// Unescape any escaped quotes
-		errorMessage = strings.ReplaceAll(errorMessage, "\\\"", "\"")
+	transferID, err := d.parseTransferID(fields[0])
+	if err != nil {
+		return entity.CreateTransferFundsResult{}, err
 	}
+
+	success := d.parseSuccess(fields[1])
+	errorMessage := d.parseErrorMessage(fields[2])
 
 	return entity.CreateTransferFundsResult{
 		TransferID:   transferID,
 		Success:      success,
 		ErrorMessage: errorMessage,
 	}, nil
+}
+
+// convertToString converts the result to string, handling both string and []byte cases
+func (d *TransactionDomain) convertToString(result interface{}) (string, error) {
+	switch v := result.(type) {
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	default:
+		return "", fmt.Errorf("expected string or []byte result, got %T", result)
+	}
+}
+
+// extractCompositeContent removes parentheses and returns the inner content
+func (d *TransactionDomain) extractCompositeContent(resultStr string) (string, error) {
+	if !strings.HasPrefix(resultStr, "(") || !strings.HasSuffix(resultStr, ")") {
+		return "", fmt.Errorf("invalid composite type format, expected parentheses: %s", resultStr)
+	}
+	return resultStr[1 : len(resultStr)-1], nil
+}
+
+// parseTransferID parses the transfer_id field
+func (d *TransactionDomain) parseTransferID(field string) (uint64, error) {
+	transferIDStr := strings.TrimSpace(field)
+	if transferIDStr == "" || transferIDStr == postgresqlNullValue {
+		return 0, nil
+	}
+
+	parsed, err := strconv.ParseUint(transferIDStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid transfer_id: %s", transferIDStr)
+	}
+	return parsed, nil
+}
+
+// parseSuccess parses the success field
+func (d *TransactionDomain) parseSuccess(field string) bool {
+	successStr := strings.TrimSpace(field)
+	return successStr == postgresqlBooleanTrue
+}
+
+// parseErrorMessage parses the error_message field, removing quotes and unescaping
+func (d *TransactionDomain) parseErrorMessage(field string) string {
+	errorMessage := strings.TrimSpace(field)
+	if strings.HasPrefix(errorMessage, quoteMark) && strings.HasSuffix(errorMessage, quoteMark) {
+		errorMessage = errorMessage[1 : len(errorMessage)-1]
+		// Unescape any escaped quotes
+		errorMessage = strings.ReplaceAll(errorMessage, escapedQuote, quoteMark)
+	}
+	return errorMessage
+}
+
+// mapTransferError maps database error messages to appropriate domain errors
+func (d *TransactionDomain) mapTransferError(errorMessage string) error {
+	normalizedErr := strings.ToLower(errorMessage)
+	switch {
+	case strings.Contains(normalizedErr, "insufficient funds"):
+		return entity.ErrInsufficientFunds
+	case strings.Contains(normalizedErr, "account does not exist"):
+		return entity.ErrDataNotFound
+	case strings.Contains(normalizedErr, "transfer amount must be positive"),
+		strings.Contains(normalizedErr, "cannot transfer to the same account"):
+		return fmt.Errorf("%w: %s", entity.ErrValidation, errorMessage)
+	default:
+		return fmt.Errorf("transfer funds failed: %s", errorMessage)
+	}
 }
