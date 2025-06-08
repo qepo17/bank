@@ -29,6 +29,15 @@ migrate-create:
 	@echo "Creating new migration: $(name)"
 	@goose create $(name) sql
 
+# Sqlc commands
+install-sqlc:
+	@echo "Installing sqlc..."
+	@go install github.com/kyleconroy/sqlc/cmd/sqlc@latest
+
+sqlc-generate:
+	@echo "Generating SQL queries..."
+	@sqlc generate
+
 # Development commands
 dev-setup: install-goose
 	@echo "Setting up development environment..."
