@@ -3,6 +3,7 @@ package customer_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -338,4 +339,82 @@ func verifySuccessfulTransfer(t *testing.T, handler *handlerFixture, sourceAccou
 	if !creditAmount.Equal(amount) {
 		t.Errorf("expected credit amount %s, got %s", amount.String(), creditAmount.String())
 	}
+}
+
+func TestCreateTransferFunds_Concurrent(t *testing.T) {
+	testHandler(t, func(t *testing.T, handler *handlerFixture) {
+		t.Run("concurrent transfer", func(t *testing.T) {
+			type account struct {
+				id      uint64
+				balance decimal.Decimal
+			}
+			accounts := []account{
+				{id: 100, balance: decimal.NewFromInt(500)},
+				{id: 200, balance: decimal.NewFromInt(200)},
+			}
+
+			// Create accounts
+			for _, acc := range accounts {
+				handler.db.Exec("INSERT INTO accounts (id, created_at, updated_at) VALUES ($1, NOW(), NOW())", acc.id)
+
+				// Create initial transaction for source account
+				var transactionID uint64
+				err := handler.db.QueryRow(`
+				INSERT INTO transactions (account_id, amount, trx_type, created_at) 
+				VALUES ($1, $2, 'CREDIT', NOW()) RETURNING id
+			`, acc.id, acc.balance.String()).Scan(&transactionID)
+				if err != nil {
+					t.Fatalf("failed to create initial transaction: %v", err)
+				}
+
+				// Create balance snapshot for source account
+				_, err = handler.db.Exec(`
+				INSERT INTO account_balance_snapshots (account_id, balance, last_transaction_id, created_at) 
+				VALUES ($1, $2, $3, NOW())
+			`, acc.id, acc.balance.String(), transactionID)
+				if err != nil {
+					t.Fatalf("failed to create balance snapshot: %v", err)
+				}
+			}
+
+			// Create 3 concurrent transfers
+			// 1. Transfer from account 100 to account 200, amount 250
+			// 2. Transfer from account 100 to account 200, amount 250
+			// 3. Transfer from account 100 to account 200, amount 250
+			// Two transfers should success, one should fail
+			wg := sync.WaitGroup{}
+			wg.Add(3)
+
+			request := `{
+				"source_account_id": 100,
+				"destination_account_id": 200,
+				"amount": "250.000000"
+			}`
+
+			success, failed := 0, 0
+			for i := 0; i < 3; i++ {
+				go func() {
+					defer wg.Done()
+					req := createRequest(t, "POST", "/transfer", request)
+					rr := httptest.NewRecorder()
+					handler.handler.CreateTransferFunds()(rr, req)
+					if rr.Code == http.StatusOK {
+						success++
+					} else {
+						failed++
+					}
+				}()
+			}
+
+			wg.Wait()
+
+			if success != 2 || failed != 1 {
+				t.Errorf("expected 2 success and 1 failed, got %d success and %d failed", success, failed)
+			}
+
+			// Check that the database state is correct
+			verifySuccessfulTransfer(t, handler, 100, 200, decimal.RequireFromString("250.000000"))
+			verifySuccessfulTransfer(t, handler, 100, 200, decimal.RequireFromString("250.000000"))
+		})
+	})
 }
